@@ -1,6 +1,7 @@
 #!/bin/bash
 # deploy.sh - Web Server Auto-Setup Script
 # Author: Muhammad Saif Rahman
+# Tester: Syed Rizwan
 # Purpose: Installs Nginx, PHP, SSL, and configures firewall on Web Server
 
 set -e  # Exit on error
@@ -22,14 +23,18 @@ echo "Step 2: Installing Nginx..."
 sudo apt install -y nginx
 
 # 3. Install PHP and required extensions
-echo "Step 3: Installing PHP 8.1 with extensions..."
-sudo apt install -y php8.1-fpm php8.1-mysql php8.1-curl php8.1-json
+# FIX: Ubuntu 24.04 (Noble) does not ship php8.1 in its default repos.
+#      Using php8.3 which is the default PHP version on Ubuntu 24.04.
+#      Note: php8.3-json is no longer a separate package (built into core PHP).
+echo "Step 3: Installing PHP 8.3 with extensions..."
+sudo apt install -y php8.3-fpm php8.3-mysql php8.3-curl
 
 # 4. Configure Nginx to use PHP
 echo "Step 4: Configuring Nginx..."
 sudo cp /etc/nginx/sites-available/default /etc/nginx/sites-available/default.bak
 
 # Create new Nginx config
+# FIX: Updated fastcgi socket path from php8.1-fpm.sock to php8.3-fpm.sock
 sudo tee /etc/nginx/sites-available/gadgetzone > /dev/null << 'EOF'
 server {
     listen 80;
@@ -45,7 +50,7 @@ server {
     
     location ~ \.php$ {
         include snippets/fastcgi-php.conf;
-        fastcgi_pass unix:/var/run/php/php8.1-fpm.sock;
+        fastcgi_pass unix:/var/run/php/php8.3-fpm.sock;
     }
     
     location ~ /\.ht {
@@ -93,6 +98,7 @@ sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
 
 # 8. Configure HTTPS in Nginx
 echo "Step 8: Configuring HTTPS..."
+# FIX: Updated fastcgi socket path from php8.1-fpm.sock to php8.3-fpm.sock
 sudo tee /etc/nginx/sites-available/gadgetzone-ssl > /dev/null << EOF
 server {
     listen 443 ssl;
@@ -111,7 +117,7 @@ server {
     
     location ~ \.php\$ {
         include snippets/fastcgi-php.conf;
-        fastcgi_pass unix:/var/run/php/php8.1-fpm.sock;
+        fastcgi_pass unix:/var/run/php/php8.3-fpm.sock;
     }
 }
 
@@ -136,4 +142,4 @@ echo "=== Deployment Complete ==="
 echo "Web Server IP: ${WEB_SERVER_IP}"
 echo "Database Server IP: ${DB_HOST}"
 echo "Health check: curl http://${WEB_SERVER_IP}/health.php"
-echo "HTTPS: https://${WEB_SERVER_IP}"S
+echo "HTTPS: https://${WEB_SERVER_IP}"
